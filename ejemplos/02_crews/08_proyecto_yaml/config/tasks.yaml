@@ -1,0 +1,14 @@
+# Cada clave tiene que coincidir con un método @task de crew.py. `agent` refiere a una clave de agents.yaml.
+analisis:
+  description: >
+    Analizá {producto}: a quién le sirve, qué problema resuelve y en qué se diferencia de la competencia.
+  expected_output: >
+    Tres secciones breves: público, problema y diferenciales.
+  agent: investigador
+
+slogans:
+  description: >
+    Con el análisis anterior, proponé 3 slogans para {producto}.
+  expected_output: >
+    Una lista numerada de 3 slogans de menos de 8 palabras cada uno.
+  agent: publicista

@@ -1,6 +1,8 @@
 # Decisiones técnicas
 
-Por qué [`main.py`](../main.py) es como es. La mayoría de estas decisiones son workarounds de fallos reales encontrados al conectar CrewAI con Groq.
+Por qué la conexión con Groq ([`comun/llm.py`](../comun/llm.py)) y el ejemplo integrador ([`ejemplos/06_integrador/01_redactor_editor`](../ejemplos/06_integrador/01_redactor_editor/main.py)) son como son. La mayoría de estas decisiones son workarounds de fallos reales encontrados al conectar CrewAI con Groq. Esas decisiones (secciones 2, 3 y 8) se aplican a todos los ejemplos del repo, porque todos crean su LLM con `crear_llm`.
+
+Las trampas de CrewAI que aparecieron al armar el resto del catálogo (knowledge, MCP, Flows, callbacks, límites de Groq) están en [trampas-conocidas.md](trampas-conocidas.md).
 
 **Versiones donde se observó todo esto:** `crewai 1.15.20`, `litellm 1.100.0`, Python 3.12.13, Groq (capa gratuita), 21/09/2026. Con otras versiones el comportamiento puede ser distinto: antes de "arreglar" un workaround, comprobá si el fallo original sigue ocurriendo.
 
@@ -23,7 +25,7 @@ GroqException - 'messages.0' : for 'role:system' the following must be satisfied
 
 ```python
 LLM(
-    model=f"openai/{MODELO}",           # "openai/" es el proveedor; MODELO es el id de Groq
+    model=f"openai/{modelo}",           # "openai/" es el proveedor; modelo es el id de Groq
     base_url="https://api.groq.com/openai/v1",
     api_key=os.environ["GROQ_API_KEY"],
     custom_openai=True,
@@ -50,7 +52,7 @@ Los dos `gpt-oss` fallan en este crew, con dos síntomas distintos:
 
 En ambos casos Groq responde 400 y CrewAI no lo recupera: la ejecución se cae. `qwen/qwen3.8-27b` completó las corridas sin esos errores.
 
-El modelo se elige con `GROQ_MODEL` en `.env`, sin tocar el código.
+El modelo se elige con `LLM_MODELO` en `.env` (o `GROQ_MODEL`, el nombre original, que se sigue aceptando), sin tocar el código.
 
 ## 4. El veredicto del editor es JSON como texto, no `output_pydantic`
 
@@ -106,7 +108,7 @@ reduce max_tokens ...
 
 **Sondeo directo a la API (pedido mínimo "Decí hola."):** sin `max_tokens` → 429 (pedía 1395); 600 → 200; 1200 → 429; 2000 → 200. El comportamiento no es monótono, así que no conviene tomar un valor por encima del límite aunque alguna vez pase. Las corridas anteriores (sin tope) habían funcionado con el mismo código, de modo que el límite cambió o se aplica de forma irregular.
 
-**Decisión.** `MAX_TOKENS_SALIDA = 900` (configurable con `GROQ_MAX_TOKENS`), pasado a `LLM(max_tokens=...)`. Con ese valor la corrida sobre "Jev" completó sin errores.
+**Decisión.** Un tope de 900 tokens por respuesta para Groq (`max_tokens_por_defecto` en `comun/llm.py`, configurable con `LLM_MAX_TOKENS` o `GROQ_MAX_TOKENS`), pasado a `LLM(max_tokens=...)`. Con ese valor la corrida sobre "Jev" completó sin errores.
 
 **Riesgo.** Es un tope por respuesta, no por minuto: varias respuestas seguidas podrían acumular más de 1000 tokens de salida en un minuto y recibir otro 429. En las corridas con el tope no ocurrió. Además, una respuesta que necesite más de 900 tokens (por ejemplo, una lista larga de hechos con URLs) podría cortarse.
 
@@ -115,3 +117,27 @@ reduce max_tokens ...
 - **`max_rpm=20`** en cada Crew: tope prudente de peticiones por minuto, no derivado de un límite medido. Para `qwen/qwen3.8-27b`, la API informó el 21/09/2026 (cabeceras `x-ratelimit-*`) un límite de 1000 peticiones y de 8000 tokens por minuto; el de tokens es el que más probablemente se alcance con notas largas.
 - **`CREWAI_TRACING_ENABLED=false`** por defecto, para que CrewAI no pregunte por las trazas al terminar la ejecución.
 - **Temperaturas por agente**: 0.1 investigador, 0.5 redactor, 0.0 editor.
+
+## 10. Estructura del repo: ejemplos como módulos, no como paquete instalado
+
+Cada ejemplo es una carpeta `ejemplos/<grupo>/<nn_nombre>/` con su `main.py`, y todos importan `comun/`. Para que `import comun` funcione hay dos caminos: instalar `comun` como paquete (con `[build-system]` en `pyproject.toml`) o correr los ejemplos desde la raíz, que queda en `sys.path`.
+
+**Decisión.** Correrlos como módulos desde la raíz: `uv run -m ejemplos.01_agentes.01_agente_solo.main`, o con el lanzador `uv run main.py agente_solo`, que hace lo mismo con `runpy`. Los tests los importan con `importlib.import_module` (un nombre como `01_agentes` no es válido en una sentencia `import`, pero `importlib` lo acepta como texto).
+
+**Por qué no un paquete.** Cambiar `pyproject.toml` obliga a regenerar `uv.lock`, y eso necesita acceso a PyPI. En el entorno donde se armó el repo, PyPI no resolvía (DNS), y un lock desactualizado rompe `uv run` para cualquiera sin red. Con esta estructura, `pyproject.toml` y `uv.lock` quedaron intactos.
+
+**Numeración.** Los prefijos `01_`, `02_`... marcan el orden de lectura sugerido. El lanzador busca por cualquier parte del camino, así que no hace falta escribirlos.
+
+## 11. Tests con `unittest` y un LLM falso
+
+**`unittest` y no `pytest`.** `pytest` no estaba instalado y no se podía agregar sin PyPI. `unittest` viene con Python, y `pytest` ejecuta los mismos tests sin cambios si lo instalás después.
+
+**LLM falso (`comun/llm_falso.py`).** Los tests normales no llaman a ningún LLM: `LLMGuionado` devuelve respuestas fijas. Así la suite es gratis, rápida (~20 s) y determinista, y no consume la cuota diaria de Groq (200.000 tokens, ver [trampas-conocidas.md §11](trampas-conocidas.md#11-límites-de-groq-entrada-por-minuto-413-y-tokens-por-día-429)). Detalle en [tests.md](tests.md).
+
+## 12. Proveedores por su API compatible con OpenAI
+
+Groq, LM Studio, Ollama, OpenAI, Anthropic y Gemini exponen `/v1/chat/completions` con el formato de OpenAI. `comun/llm.py` los conecta a todos con el proveedor nativo `openai/` de CrewAI, cambiando solo `base_url`, la key y el modelo.
+
+**Por qué.** Evita instalar los extras `crewai[anthropic]` y `crewai[google-genai]` (que tampoco se podían instalar sin PyPI) y deja un único camino de código para todos los ejemplos. La alternativa con proveedores nativos está en [proveedores-llm.md](proveedores-llm.md#alternativa-proveedores-nativos-de-crewai).
+
+**Costo.** Las capas de compatibilidad no siempre soportan todo (por ejemplo, funciones propias de cada API como el caché de prompts de Anthropic). Para usar esas funciones, conviene el proveedor nativo.

@@ -1,117 +1,137 @@
 # crew-practices
 
-Práctica de [CrewAI](https://docs.crewai.com/): un equipo de tres agentes que investiga un tema de actualidad, redacta un borrador de unas 200 palabras y lo somete a una revisión editorial con criterios concretos. Si el borrador no los cumple, vuelve al redactor. Todo corre sobre [Groq](https://groq.com/) en su capa gratuita.
+Un repositorio para **aprender CrewAI haciendo**: 33 ejemplos ejecutables (y uno documentado) que cubren todos los tipos de agentes, Crews y Flows que se pueden armar con [CrewAI](https://docs.crewai.com/). Cada uno tiene su código comentado, su README con la salida real y sus tests.
 
-El objetivo del repo es tener un ejemplo mínimo y funcional de tres cosas que suelen costar en CrewAI:
+Funciona gratis: por defecto usa [Groq](https://groq.com/) (capa gratuita) como LLM y [LM Studio](https://lmstudio.ai/) local para los embeddings. Se puede cambiar a Ollama, OpenAI, Anthropic o Gemini sin tocar código.
 
-1. **Agentes con herramientas reales** (búsqueda web en vivo, sin API key).
-2. **Un bucle de revisión** (redactor ⇄ editor), que CrewAI no trae resuelto entre tareas.
-3. **Un LLM como revisor sin confiar ciegamente en él**: el código verifica por su cuenta el criterio medible (la longitud).
+## ¿Qué vas a encontrar?
 
-## Cómo funciona
+| Si querés... | Andá a |
+|---|---|
+| Entender qué es cada pieza (agente, tarea, Crew, Flow...) | [docs/conceptos.md](docs/conceptos.md) |
+| Ver **qué tipos de cosas** se pueden armar y cómo clasificarlas | [docs/clasificacion.md](docs/clasificacion.md) |
+| Correr ejemplos | [ejemplos/](ejemplos) |
+| Evitar los problemas que ya encontramos | [docs/trampas-conocidas.md](docs/trampas-conocidas.md) |
+| Testear agentes sin gastar tokens | [docs/tests.md](docs/tests.md) |
+| Usar otro proveedor de LLM | [docs/proveedores-llm.md](docs/proveedores-llm.md) |
 
-```mermaid
-flowchart LR
-    T([Tema]) --> I[Investigador<br/>busca noticias]
-    I -- notas con fuentes --> R[Redactor<br/>~200 palabras]
-    R -- borrador --> E{Editor}
-    E -- "aprobado" --> F([borrador_final.md])
-    E -- "rechazado + correcciones" --> R
-```
+## Inicio rápido
 
-| Agente | Qué hace | Herramienta |
-|---|---|---|
-| **Investigador** | Busca noticias de la última semana y devuelve entre 5 y 8 hechos con cifras, fechas y fuente (URL). | `buscar_noticias` (DuckDuckGo vía [`ddgs`](https://pypi.org/project/ddgs/)) |
-| **Redactor** | Escribe un borrador de ~200 palabras usando solo las notas. | — |
-| **Editor** | Verifica los criterios de edición y devuelve un veredicto en JSON con correcciones concretas. | `contar_palabras` |
+### 1. Requisitos
 
-**Criterios de edición** (constantes al inicio de [`main.py`](main.py)):
+- [uv](https://docs.astral.sh/uv/) (maneja Python y las dependencias).
+- Python 3.12 (uv lo instala solo; `crewai 1.15.20` no soporta 3.14).
+- Una API key gratuita de Groq: <https://console.groq.com/keys>.
+- Opcionales:
+  - [LM Studio](https://lmstudio.ai/) para los ejemplos de knowledge y memoria.
+  - [Docker](https://www.docker.com/) para el de ejecución de código.
 
-- Menciona al menos **2 datos concretos** (cifras, fechas, nombres) que figuren en las notas de investigación.
-- No supera las **250 palabras**.
-
-Si el editor rechaza, el redactor reescribe con esas correcciones y el editor vuelve a revisar, hasta **3 rondas**. Si tras la última ronda sigue sin aprobarse, el programa imprime el último borrador, avisa que quedó sin aprobar y termina con código de salida 1.
-
-**Guarda de longitud.** Los LLM cuentan mal, y en las pruebas el editor aprobó borradores de 281 y 257 palabras. Por eso el código recalcula el conteo real y devuelve el borrador al redactor aunque el editor lo haya aprobado. El criterio de "2 datos concretos", en cambio, lo juzga solo el LLM. Más detalle en [docs/decisiones-tecnicas.md](docs/decisiones-tecnicas.md).
-
-## Requisitos
-
-- [uv](https://docs.astral.sh/uv/)
-- Python 3.12 (el proyecto lo fija en [`.python-version`](.python-version); `crewai 1.15.20` declara `<3.14`)
-- Una API key gratuita de Groq: <https://console.groq.com/keys>
-- Acceso a internet (Groq, PyPI y DuckDuckGo)
-
-## Instalación
+### 2. Instalación
 
 ```bash
-cd crew_ai_practices
+git clone <este repo> && cd crew_ai_practices
 uv sync
 cp .env.example .env
 ```
 
-Editá `.env` y pegá tu key:
+Abrí `.env` y pegá tu key:
 
 ```
 GROQ_API_KEY=gsk_...
 ```
 
-`.env` está en `.gitignore`. No lo subas.
-
-## Uso
+### 3. Tu primer agente
 
 ```bash
-uv run main.py "inteligencia artificial"
+uv run main.py agente_solo "¿Qué es una API?"
 ```
 
-Sin argumento, el investigador elige por su cuenta un tema tecnológico de hoy:
+Vas a ver el razonamiento del agente en la terminal y, al final, una respuesta libre y otra estructurada (JSON).
+
+### 4. Ver todos los ejemplos
 
 ```bash
 uv run main.py
 ```
 
-La salida muestra el trabajo de cada agente en vivo. Cuando el editor devuelve un borrador, se ve una línea como:
-
 ```
->>> Ronda 1: borrador devuelto al redactor (257 palabras). Motivo: Conteo real: 257 palabras ...
+01_agentes
+  01_agente_solo
+  02_herramientas
+  03_mcp
+  ...
+06_integrador
+  01_redactor_editor
+  02_redactor_editor_flow
 ```
 
-Al final se imprime el borrador aprobado y se guarda en `borrador_final.md`, con código de salida 0 si fue aprobado y 1 si no.
+Corré cualquiera con una parte de su nombre: `uv run main.py router`, `uv run main.py jerarquico`...
 
-## Configuración
-
-| Qué | Dónde | Por defecto |
-|---|---|---|
-| API key de Groq | `GROQ_API_KEY` en `.env` | — (obligatoria) |
-| Modelo de Groq | `GROQ_MODEL` en `.env` | `qwen/qwen3.8-27b` |
-| Tope de tokens de salida por respuesta | `GROQ_MAX_TOKENS` en `.env` | `900` |
-| Longitud objetivo, máximo, mínimo de datos, rondas | constantes en [`main.py`](main.py) | 200 / 250 / 2 / 3 |
-
-Para ver qué modelos ofrece tu cuenta de Groq:
+### 5. Correr los tests
 
 ```bash
-curl -s https://api.groq.com/openai/v1/models -H "Authorization: Bearer $GROQ_API_KEY"
+uv run python -m unittest -b
 ```
 
-**Elegí el modelo con cuidado.** Los `openai/gpt-oss-*` de Groq fallan con el editor (ver [decisiones técnicas](docs/decisiones-tecnicas.md)). Si cambiás `GROQ_MODEL`, probá una corrida completa.
+78 tests en ~20 segundos, **sin gastar tokens**: usan un LLM falso (ver [docs/tests.md](docs/tests.md)).
 
-## Límites conocidos
+## Qué se puede armar con CrewAI
 
-- **Sin tests automáticos.** La verificación fue manual: tres corridas reales completas ("inteligencia artificial", "energía y clima" y "Jev"). Las dos primeras necesitaron una ronda de corrección; la tercera se aprobó en la primera.
-- **El modo sin argumento no se probó.** Solo se corrió con un tema explícito.
-- **Los datos no se verifican contra la fuente.** El editor coteja el borrador contra las *notas* del investigador, que son resúmenes de buscador. Un dato mal resumido en las notas pasa al borrador.
-- **Dependencia de versiones exactas.** Los workarounds con Groq se observaron con `crewai 1.15.20` y `litellm 1.100.0`. Una versión posterior puede haberlos vuelto innecesarios o distintos.
-- **Capa gratuita de Groq.** Los límites dependen de la cuenta y del modelo y pueden cambiar. Para `qwen/qwen3.8-27b`, el 21/09/2026 la API informó en sus cabeceras `x-ratelimit-*` 1000 peticiones y 8000 tokens por minuto, y además rechazó con un 429 los pedidos cuyo máximo de salida superaba **1000 tokens de salida por minuto** (ese límite no aparece en las cabeceras). Por eso el código fija `max_tokens=900`; si tu cuenta o modelo tienen otro límite, ajustá `GROQ_MAX_TOKENS`. Con un tope tan bajo, una respuesta larga podría cortarse. `max_rpm=20` es un tope prudente, no un valor derivado de un límite medido.
-- **`litellm` sobra.** Quedó instalado por el extra `crewai[litellm]` que se usó al principio, pero el código ya no lo usa.
+Resumen de [docs/clasificacion.md](docs/clasificacion.md). CrewAI no tiene "tipos de agente" oficiales: tiene piezas que se combinan. Este repo las ordena con siete criterios:
+
+| Criterio | Valores | Ejemplos |
+|---|---|---|
+| **Unidad de orquestación** | Agente solo · Crew · Flow · Flow con Crews | [01_agente_solo](ejemplos/01_agentes/01_agente_solo), [02_crews](ejemplos/02_crews), [03_flows](ejemplos/03_flows) |
+| **Proceso** | Secuencial · Jerárquico | [01_secuencial](ejemplos/02_crews/01_secuencial), [02_jerarquico](ejemplos/02_crews/02_jerarquico) |
+| **Capacidades del agente** | Herramientas · MCP · Knowledge · Memoria · Planificación · Guardrails · Salida estructurada · Código · A2A · Delegación · Multimodal | [01_agentes](ejemplos/01_agentes) |
+| **Control de tareas** | Contexto · Asíncronas · Condicionales · Con humano · Callbacks | [02_crews](ejemplos/02_crews) |
+| **Autonomía** | Determinista → Guiado → Autónomo | [clasificacion.md §5](docs/clasificacion.md#5-por-grado-de-autonomía) |
+| **Interacción** | Batch · Humano en el bucle | [07_humano_en_el_bucle](ejemplos/02_crews/07_humano_en_el_bucle), [06_human_feedback](ejemplos/03_flows/06_human_feedback) |
+| **Definición y despliegue** | Script · Proyecto YAML · CrewAI AMP | [08_proyecto_yaml](ejemplos/02_crews/08_proyecto_yaml) |
+
+**Además de agentes**, con CrewAI se arman Flows sin LLM (orquestación con estado, ramas y persistencia), herramientas, servidores MCP y A2A, bases de knowledge, memoria independiente, guardrails, hooks y listeners de eventos, y LLMs propios.
 
 ## Estructura
 
 ```
-main.py                        # los tres agentes, las tareas y el bucle de revisión
-.env.example                   # plantilla de configuración
-pyproject.toml / uv.lock       # dependencias (uv)
-docs/decisiones-tecnicas.md    # por qué el código es como es (problemas con Groq y CrewAI)
-AGENTS.md                      # guía para agentes de código que trabajen en el repo
+main.py                     lanzador: lista y corre los ejemplos
+comun/                      piezas compartidas: crear_llm, embeddings, LLM falso, herramientas
+ejemplos/
+├── 01_agentes/             una capacidad de agente por ejemplo (11)
+├── 02_crews/               procesos y control de tareas (9)
+├── 03_flows/               orquestación con Flows (8)
+├── 04_observabilidad/      hooks, eventos, callbacks (3)
+├── 05_proveedores_llm/     el mismo agente en varios proveedores (1)
+└── 06_integrador/          un caso completo, con bucle en Python y como Flow (2)
+tests/                      tests offline con LLM falso + tests en vivo opcionales
+docs/                       conceptos, clasificación, proveedores, tests, trampas, decisiones
+.env.example                plantilla de configuración
+AGENTS.md                   guía para agentes de código (Claude Code, Codex...)
 ```
+
+Cada carpeta tiene su propio `README.md`.
+
+## Configuración
+
+Todo se configura en `.env` (ver [.env.example](.env.example)):
+
+| Variable | Para qué | Por defecto |
+|---|---|---|
+| `GROQ_API_KEY` | Key de Groq | — (obligatoria con Groq) |
+| `LLM_PROVEEDOR` | `groq`, `lmstudio`, `ollama`, `openai`, `anthropic`, `gemini` | `groq` |
+| `LLM_MODELO` | Modelo del proveedor | `qwen/qwen3.8-27b` en Groq |
+| `LLM_MAX_TOKENS` | Tope de tokens por respuesta | `900` en Groq |
+| `EMBEDDINGS_PROVEEDOR` | `lmstudio`, `ollama`, `openai` | `lmstudio` |
+| `SANDBOX_IMAGEN` | Imagen de Docker para ejecutar código | `python:3.12-slim` |
+| `CREW_VIVO` | `1` activa los tests con LLM real | — |
+
+## Límites conocidos
+
+- **Capa gratuita de Groq:** 1000 tokens de salida y 7000 de entrada por minuto, y **200.000 por día**. Correr todos los ejemplos seguidos alcanza el límite diario. Ver [trampas §11](docs/trampas-conocidas.md#11-límites-de-groq-entrada-por-minuto-413-y-tokens-por-día-429).
+- **Versión fija:** todo se verificó con `crewai 1.15.20`. Varias trampas documentadas dependen de esa versión.
+- **Verificación parcial:** la mayoría de los ejemplos se corrieron en vivo, pero no todos. A2A y multimodal no se pudieron ejecutar, y los proveedores distintos de Groq no se probaron con un modelo de chat real. Detalle en [ejemplos/README.md](ejemplos/README.md#estado-de-verificación).
+- **Los LLM se equivocan:** los ejemplos muestran casos reales de datos inventados y cálculos mal hechos. Nada de lo que generan los agentes está verificado contra la realidad salvo donde el código lo controla.
+- **Extras no instalados:** `crewai[a2a]`, `crewai[tools]`, `crewai[anthropic]` y `crewai[google-genai]` no están en las dependencias. Los ejemplos que los mencionan explican cómo agregarlos.
 
 ## Licencia
 
