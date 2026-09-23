@@ -24,6 +24,7 @@ Estas decisiones parecen arbitrarias, pero cada una arregla un fallo real. El po
 - **No uses `output_pydantic` en la tarea del editor.** Con `gpt-oss` hace que el modelo emita el veredicto como una tool call `json` inexistente. El editor responde JSON como texto y `leer_veredicto` lo valida.
 - **No pongas un `openai/gpt-oss-*` como modelo por defecto.** Fallan con el editor. El modelo se elige con `GROQ_MODEL`.
 - **No quites la guarda de `evaluar`.** Recalcula el conteo de palabras real porque el editor LLM aprobó borradores de 281 y 257 palabras (máximo 250).
+- **No quites `max_tokens` de `crear_llm`.** Sin tope, Groq asume ~1400 tokens de salida y rechaza el pedido con 429 (OTPM 1000 en la cuenta de prueba). Se configura con `GROQ_MAX_TOKENS`.
 - **Las tareas del bucle reciben texto, no `Task`s previas.** Las rondas de corrección arman un Crew nuevo de dos agentes y le pasan notas, borrador y correcciones como strings en la descripción.
 
 Si cambiás la versión de `crewai` o de Groq, revisá si esas reglas siguen vigentes antes de tocarlas, y actualizá el documento de decisiones con lo que encuentres.

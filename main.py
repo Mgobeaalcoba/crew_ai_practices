@@ -27,6 +27,9 @@ MAX_RONDAS = 3
 
 # gpt-oss-120b/20b fallan con el editor en Groq (emiten el JSON como una tool call "json" inexistente)
 MODELO = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
+# Groq rechaza (429) pedidos cuyo máximo de salida supera el límite de tokens de salida por minuto del modelo
+# (1000 en la cuenta de prueba). Sin tope explícito asume ~1400 y falla desde la primera llamada.
+MAX_TOKENS_SALIDA = int(os.getenv("GROQ_MAX_TOKENS", "900"))
 TEMA_POR_DEFECTO = "el tema de tecnología más relevante de hoy"
 
 
@@ -71,6 +74,7 @@ def crear_llm(temperatura: float) -> LLM:
         api_key=os.environ["GROQ_API_KEY"],
         custom_openai=True,
         temperature=temperatura,
+        max_tokens=MAX_TOKENS_SALIDA,
     )
 
 

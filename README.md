@@ -83,6 +83,7 @@ Al final se imprime el borrador aprobado y se guarda en `borrador_final.md`, con
 |---|---|---|
 | API key de Groq | `GROQ_API_KEY` en `.env` | — (obligatoria) |
 | Modelo de Groq | `GROQ_MODEL` en `.env` | `qwen/qwen3.8-27b` |
+| Tope de tokens de salida por respuesta | `GROQ_MAX_TOKENS` en `.env` | `900` |
 | Longitud objetivo, máximo, mínimo de datos, rondas | constantes en [`main.py`](main.py) | 200 / 250 / 2 / 3 |
 
 Para ver qué modelos ofrece tu cuenta de Groq:
@@ -95,11 +96,11 @@ curl -s https://api.groq.com/openai/v1/models -H "Authorization: Bearer $GROQ_AP
 
 ## Límites conocidos
 
-- **Sin tests automáticos.** La verificación fue manual: dos corridas reales completas (temas "inteligencia artificial" y "energía y clima"), cada una con una ronda de corrección.
+- **Sin tests automáticos.** La verificación fue manual: tres corridas reales completas ("inteligencia artificial", "energía y clima" y "Jev"). Las dos primeras necesitaron una ronda de corrección; la tercera se aprobó en la primera.
 - **El modo sin argumento no se probó.** Solo se corrió con un tema explícito.
 - **Los datos no se verifican contra la fuente.** El editor coteja el borrador contra las *notas* del investigador, que son resúmenes de buscador. Un dato mal resumido en las notas pasa al borrador.
 - **Dependencia de versiones exactas.** Los workarounds con Groq se observaron con `crewai 1.15.20` y `litellm 1.100.0`. Una versión posterior puede haberlos vuelto innecesarios o distintos.
-- **Capa gratuita de Groq.** Los límites dependen de la cuenta y del modelo y pueden cambiar. Para `qwen/qwen3.8-27b`, el 21/09/2026 la API informó en sus cabeceras `x-ratelimit-*` 1000 peticiones y 8000 tokens por minuto. Las corridas de prueba no los superaron, pero un tema con muchas notas o varias rondas seguidas podría hacerlo. `max_rpm=20` es un tope prudente, no un valor derivado de un límite medido.
+- **Capa gratuita de Groq.** Los límites dependen de la cuenta y del modelo y pueden cambiar. Para `qwen/qwen3.8-27b`, el 21/09/2026 la API informó en sus cabeceras `x-ratelimit-*` 1000 peticiones y 8000 tokens por minuto, y además rechazó con un 429 los pedidos cuyo máximo de salida superaba **1000 tokens de salida por minuto** (ese límite no aparece en las cabeceras). Por eso el código fija `max_tokens=900`; si tu cuenta o modelo tienen otro límite, ajustá `GROQ_MAX_TOKENS`. Con un tope tan bajo, una respuesta larga podría cortarse. `max_rpm=20` es un tope prudente, no un valor derivado de un límite medido.
 - **`litellm` sobra.** Quedó instalado por el extra `crewai[litellm]` que se usó al principio, pero el código ya no lo usa.
 
 ## Estructura

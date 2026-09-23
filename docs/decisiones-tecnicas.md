@@ -92,7 +92,25 @@ Se eligió por ser gratis y no requerir API key, lo que mantiene todo el ejemplo
 
 Al investigador se le indica que no puede abrir enlaces, para que trabaje con los resúmenes en vez de intentar navegar (ver punto 3).
 
-## 8. Otros ajustes
+## 8. Tope de tokens de salida (`max_tokens=900`)
+
+**Síntoma.** Una corrida que días antes funcionaba pasó a fallar en la primera llamada, con un 429:
+
+```
+Request too large for model `qwen/qwen3.8-27b` ... on output tokens per minute (OTPM):
+Limit 1000, Requested 1395. The request's expected output tokens exceed the enforced limit;
+reduce max_tokens ...
+```
+
+**Causa.** Sin `max_tokens`, Groq asume un máximo de salida de ~1395 tokens y lo compara con el límite de salida por minuto del modelo (1000 en la cuenta de prueba, el 21/09/2026). Ese límite no figura en las cabeceras `x-ratelimit-*`, que solo muestran peticiones y tokens totales.
+
+**Sondeo directo a la API (pedido mínimo "Decí hola."):** sin `max_tokens` → 429 (pedía 1395); 600 → 200; 1200 → 429; 2000 → 200. El comportamiento no es monótono, así que no conviene tomar un valor por encima del límite aunque alguna vez pase. Las corridas anteriores (sin tope) habían funcionado con el mismo código, de modo que el límite cambió o se aplica de forma irregular.
+
+**Decisión.** `MAX_TOKENS_SALIDA = 900` (configurable con `GROQ_MAX_TOKENS`), pasado a `LLM(max_tokens=...)`. Con ese valor la corrida sobre "Jev" completó sin errores.
+
+**Riesgo.** Es un tope por respuesta, no por minuto: varias respuestas seguidas podrían acumular más de 1000 tokens de salida en un minuto y recibir otro 429. En las corridas con el tope no ocurrió. Además, una respuesta que necesite más de 900 tokens (por ejemplo, una lista larga de hechos con URLs) podría cortarse.
+
+## 9. Otros ajustes
 
 - **`max_rpm=20`** en cada Crew: tope prudente de peticiones por minuto, no derivado de un límite medido. Para `qwen/qwen3.8-27b`, la API informó el 21/09/2026 (cabeceras `x-ratelimit-*`) un límite de 1000 peticiones y de 8000 tokens por minuto; el de tokens es el que más probablemente se alcance con notas largas.
 - **`CREWAI_TRACING_ENABLED=false`** por defecto, para que CrewAI no pregunte por las trazas al terminar la ejecución.
