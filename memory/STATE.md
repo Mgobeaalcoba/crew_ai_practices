@@ -7,7 +7,7 @@
 ## Estado
 
 - Repositorio educativo de CrewAI: catálogo de ejemplos de tripulaciones con tests offline.
-- Agentificado el 17/10/2026: AGENTS.md, puentes multi-agente (CLAUDE.md, GEMINI.md, .github/copilot-instructions.md), esta memoria (STATE.md + LOG.md) y scripts/scan_secrets.py (hook no instalado: hay hallazgos preexistentes a revisar). Sin sesiones registradas aún.
+- Agentificado el 17/10/2026: AGENTS.md, puentes multi-agente (CLAUDE.md, GEMINI.md, .github/copilot-instructions.md), esta memoria (STATE.md + LOG.md) y scripts/scan_secrets.py (hook pre-commit instalado el 17/10/2026; hallazgos revisados: datos de ejemplo, no credenciales reales). Historial en `LOG.md`.
 
 ## Próximo paso
 
@@ -15,7 +15,7 @@
 
 ## Pendientes
 
-- [ ] Resolver los hallazgos del escaneo de secretos y luego instalar el hook — `ejemplos/04_observabilidad/01_hooks/main.py` (datos de ejemplo con formato DNI/teléfono).
+- [x] Hallazgos del escaneo revisados (datos de ejemplo con formato DNI/teléfono) y hook pre-commit instalado — 17/10/2026. Lista blanca: `scripts/secret_scan_allowlist.txt`.
 
 ## Bloqueos
 
