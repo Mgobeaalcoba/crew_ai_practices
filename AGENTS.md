@@ -73,3 +73,9 @@ Si cambiás la versión de `crewai`, revisá si estas reglas siguen vigentes ant
 - La búsqueda usa `ddgs` (DuckDuckGo), sin key; puede fallar por límites de tasa.
 - Al terminar, puede aparecer un pánico de Rust (`pyo3`, `tokio-runtime-worker`): es `lancedb` cerrándose. Ruido inofensivo.
 - Archivos generados que no se versionan: `borrador_final.md`, `.venv/`, `db/`, `__pycache__/`.
+
+## Memoria de sesiones
+
+- memory/STATE.md — foto del estado; memory/LOG.md — historial append-only (no se editan entradas viejas).
+- Puentes: CLAUDE.md, GEMINI.md y .github/copilot-instructions.md apuntan a este archivo.
+- Al cerrar una sesión con cambios: actualizar STATE, agregar la entrada en LOG y commitear (scripts/scan_secrets.py queda como escaneo manual: hay hallazgos preexistentes que revisar).

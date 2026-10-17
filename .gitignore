@@ -3,3 +3,5 @@
 __pycache__/
 borrador_final.md
 db/
+
+.DS_Store
